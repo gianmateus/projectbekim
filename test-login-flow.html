@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste do Fluxo de Login</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste do Fluxo de Login Corrigido</h1>
+        
+        <div class="info">
+            <h3>✅ Correções Implementadas:</h3>
+            <ul>
+                <li>Validação de token no servidor antes de redirecionar</li>
+                <li>Limpeza automática de dados inválidos</li>
+                <li>Configuração do Next.js corrigida</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h3>Passo 1: Verificar Estado Atual</h3>
+            <button class="button" onclick="checkCurrentState()">🔍 Verificar LocalStorage</button>
+            <div id="state-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Passo 2: Limpar Dados (se necessário)</h3>
+            <button class="button" onclick="clearAuth()">🧹 Limpar Dados de Auth</button>
+            <div id="clear-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Passo 3: Testar Redirecionamento</h3>
+            <button class="button" onclick="testRedirect()">🚀 Abrir Site (Deve ir para Login)</button>
+            <div id="redirect-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Passo 4: Fazer Login de Teste</h3>
+            <button class="button" onclick="doTestLogin()">🔐 Fazer Login com Dados de Teste</button>
+            <div id="login-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Passo 5: Verificar Fluxo Completo</h3>
+            <button class="button" onclick="testFullFlow()">🔄 Testar Fluxo Completo</button>
+            <div id="flow-result"></div>
+        </div>
+    </div>
+
+    <script>
+        function checkCurrentState() {
+            const resultDiv = document.getElementById('state-result');
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            const restaurant = localStorage.getItem('selectedRestaurant');
+            
+            const state = {
+                token: token ? 'Presente' : 'Ausente',
+                user: user ? 'Presente' : 'Ausente',
+                selectedRestaurant: restaurant ? 'Presente' : 'Ausente'
+            };
+            
+            resultDiv.innerHTML = `
+                <pre>${JSON.stringify(state, null, 2)}</pre>
+                <div class="info">
+                    <strong>Status:</strong> ${!token ? 'Limpo - deve ir para login ✅' : 'Com dados - pode ir para dashboard ⚠️'}
+                </div>
+            `;
+        }
+
+        function clearAuth() {
+            const resultDiv = document.getElementById('clear-result');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('selectedRestaurant');
+            
+            resultDiv.innerHTML = '<div class="success">✅ Dados de autenticação limpos!</div>';
+            checkCurrentState();
+        }
+
+        function testRedirect() {
+            const resultDiv = document.getElementById('redirect-result');
+            resultDiv.innerHTML = '<div class="info">🚀 Abrindo nova aba... Verifique se vai para a tela de login.</div>';
+            window.open('http://localhost:3000', '_blank');
+        }
+
+        async function doTestLogin() {
+            const resultDiv = document.getElementById('login-result');
+            try {
+                const response = await fetch('http://localhost:3001/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@restaurant.local',
+                        password: 'RestaurantAdmin2024!'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    resultDiv.innerHTML = '<div class="success">✅ Login realizado com sucesso!</div>';
+                    checkCurrentState();
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Erro no login: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erro de conexão: ${error.message}</div>`;
+            }
+        }
+
+        async function testFullFlow() {
+            const resultDiv = document.getElementById('flow-result');
+            resultDiv.innerHTML = '<div class="info">🔄 Iniciando teste completo...</div>';
+            
+            // Passo 1: Limpar tudo
+            localStorage.clear();
+            
+            // Passo 2: Verificar se vai para login
+            resultDiv.innerHTML += '<div class="info">1. Dados limpos ✅</div>';
+            
+            // Passo 3: Simular login
+            try {
+                const response = await fetch('http://localhost:3001/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@restaurant.local',
+                        password: 'RestaurantAdmin2024!'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    resultDiv.innerHTML += '<div class="success">2. Login simulado ✅</div>';
+                    
+                    // Passo 4: Testar validação do token
+                    const verifyResponse = await fetch('http://localhost:3001/api/auth/verify', {
+                        headers: {
+                            'Authorization': `Bearer ${data.data.token}`,
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    
+                    if (verifyResponse.ok) {
+                        resultDiv.innerHTML += '<div class="success">3. Token válido ✅</div>';
+                        resultDiv.innerHTML += '<div class="success">🎉 Fluxo funcionando corretamente!</div>';
+                        resultDiv.innerHTML += '<div class="info">Agora abra uma nova aba em http://localhost:3000 - deve ir para seleção de restaurante.</div>';
+                    } else {
+                        resultDiv.innerHTML += '<div class="error">3. Token inválido ❌</div>';
+                    }
+                } else {
+                    resultDiv.innerHTML += `<div class="error">2. Erro no login: ${data.error} ❌</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="error">2. Erro de conexão: ${error.message} ❌</div>`;
+            }
+        }
+
+        // Auto-verificar estado ao carregar
+        window.onload = function() {
+            checkCurrentState();
+        };
+    </script>
+</body>
+</html> 

@@ -1,0 +1,57 @@
+version: 1
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - echo "Installing frontend dependencies..."
+            - cd frontend
+            - npm ci
+        build:
+          commands:
+            - echo "Building React/Next.js application..."
+            - npm run build
+      artifacts:
+        baseDirectory: frontend/.next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - frontend/node_modules/**/*
+          - frontend/.next/cache/**/*
+    appRoot: frontend
+    
+  - backend:
+      phases:
+        preBuild:
+          commands:
+            - echo "Installing backend dependencies..."
+            - cd backend
+            - npm ci
+            - echo "Generating Prisma client..."
+            - npx prisma generate
+        build:
+          commands:
+            - echo "Building backend application..."
+            - npm run build
+            - echo "Running database migrations..."
+            - npx prisma migrate deploy
+        postBuild:
+          commands:
+            - echo "Backend build completed successfully!"
+      artifacts:
+        baseDirectory: backend/dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - backend/node_modules/**/*
+    appRoot: backend
+
+env:
+  variables:
+    NODE_ENV: production
+    NEXT_TELEMETRY_DISABLED: 1
+    # Estas variáveis serão configuradas no console da AWS
+    # DATABASE_URL: será configurado via AWS Systems Manager
+    # JWT_SECRET: será configurado via AWS Systems Manager 

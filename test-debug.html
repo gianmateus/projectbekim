@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Debug Dashboard - Restaurant Financial Management</h1>
+
+    <div class="step">
+        <h3>Passo 1: Health Check</h3>
+        <button onclick="healthCheck()">Testar Backend</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="step">
+        <h3>Passo 2: Login</h3>
+        <button onclick="testLogin()">Fazer Login</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="step">
+        <h3>Passo 3: Dashboard Data</h3>
+        <button onclick="testDashboard()">Testar Dashboard</button>
+        <div id="dashboard-result"></div>
+    </div>
+
+    <script>
+        let token = null;
+
+        async function healthCheck() {
+            const resultDiv = document.getElementById('health-result');
+            try {
+                const response = await fetch('http://localhost:3001/health');
+                const data = await response.json();
+                resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                resultDiv.className = 'success';
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+                resultDiv.className = 'error';
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('login-result');
+            try {
+                const response = await fetch('http://localhost:3001/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@restaurant.local',
+                        password: 'RestaurantAdmin2024!'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    token = data.data.token;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    resultDiv.innerHTML = `<div class="success">Login realizado com sucesso!</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    resultDiv.className = 'success';
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Erro no login: ${data.message}</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    resultDiv.className = 'error';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+                resultDiv.className = 'error';
+            }
+        }
+
+        async function testDashboard() {
+            const resultDiv = document.getElementById('dashboard-result');
+            
+            if (!token) {
+                token = localStorage.getItem('token');
+            }
+            
+            if (!token) {
+                resultDiv.innerHTML = `<div class="error">Primeiro faça login!</div>`;
+                resultDiv.className = 'error';
+                return;
+            }
+
+            try {
+                // Simula a seleção de restaurante
+                const selectedRestaurant = {
+                    id: 'restaurant-001',
+                    name: 'La Bella Vista',
+                    address: 'Hauptstraße 123, 10115 Berlin',
+                    color: '#c54f42'
+                };
+                localStorage.setItem('selectedRestaurant', JSON.stringify(selectedRestaurant));
+
+                const response = await fetch('http://localhost:3001/api/dashboard/restaurant-001/data', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">Dashboard carregado com sucesso!</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    resultDiv.className = 'success';
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Erro no dashboard: ${data.message}</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    resultDiv.className = 'error';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+                resultDiv.className = 'error';
+            }
+        }
+
+        // Auto-carregar token se existir
+        window.onload = function() {
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                token = savedToken;
+                document.getElementById('login-result').innerHTML = '<div class="success">Token encontrado no localStorage</div>';
+            }
+        };
+    </script>
+</body>
+</html> 

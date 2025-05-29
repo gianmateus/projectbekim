@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Seleção de Restaurante</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #0056b3; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; max-height: 200px; overflow-y: auto; font-size: 12px; }
+        .restaurant { margin: 10px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; }
+        .restaurant:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <h1>🏪 Teste Seleção de Restaurante</h1>
+    
+    <button onclick="doLogin()">🔐 1. Fazer Login</button>
+    <button onclick="listRestaurants()">📋 2. Listar Restaurantes</button>
+    <button onclick="clearData()">🧹 Limpar Dados</button>
+    
+    <div id="results"></div>
+    <div id="restaurants"></div>
+
+    <script>
+        let token = null;
+        let restaurants = [];
+
+        function log(message, type = 'info', data = null) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            
+            let content = message;
+            if (data) {
+                content += '\n' + JSON.stringify(data, null, 2);
+            }
+            
+            div.innerHTML = `<pre>${content}</pre>`;
+            results.appendChild(div);
+            console.log(message, data);
+        }
+
+        function clearData() {
+            localStorage.clear();
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('restaurants').innerHTML = '';
+            token = null;
+            restaurants = [];
+            log('Dados limpos', 'success');
+        }
+
+        async function doLogin() {
+            try {
+                log('Fazendo login...', 'info');
+                
+                const response = await fetch('http://localhost:3001/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@restaurant.local',
+                        password: 'RestaurantAdmin2024!'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    token = data.data.token;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    
+                    log('✅ Login realizado com sucesso', 'success', {
+                        userId: data.data.user.id,
+                        email: data.data.user.email
+                    });
+                } else {
+                    const error = await response.json();
+                    log('❌ Erro no login', 'error', error);
+                }
+            } catch (error) {
+                log('❌ Erro de conexão no login', 'error', error.message);
+            }
+        }
+
+        async function listRestaurants() {
+            if (!token) {
+                token = localStorage.getItem('token');
+            }
+            
+            if (!token) {
+                log('❌ Faça login primeiro!', 'error');
+                return;
+            }
+
+            try {
+                log('Listando restaurantes...', 'info');
+                
+                const response = await fetch('http://localhost:3001/api/restaurants', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    restaurants = data.data;
+                    
+                    log('✅ Restaurantes carregados', 'success', {
+                        count: restaurants.length,
+                        restaurants: restaurants.map(r => ({ id: r.id, name: r.name }))
+                    });
+                    
+                    showRestaurants();
+                } else {
+                    const error = await response.json();
+                    log('❌ Erro ao listar restaurantes', 'error', error);
+                }
+            } catch (error) {
+                log('❌ Erro de conexão ao listar restaurantes', 'error', error.message);
+            }
+        }
+
+        function showRestaurants() {
+            const container = document.getElementById('restaurants');
+            container.innerHTML = '<h3>📋 Restaurantes Disponíveis (clique para selecionar):</h3>';
+            
+            restaurants.forEach(restaurant => {
+                const div = document.createElement('div');
+                div.className = 'restaurant';
+                div.innerHTML = `
+                    <strong>${restaurant.name}</strong><br>
+                    <small>ID: ${restaurant.id}</small><br>
+                    <small>${restaurant.address}</small>
+                `;
+                div.onclick = () => selectRestaurant(restaurant.id);
+                container.appendChild(div);
+            });
+        }
+
+        async function selectRestaurant(restaurantId) {
+            if (!token) {
+                log('❌ Token não encontrado!', 'error');
+                return;
+            }
+
+            try {
+                log(`Selecionando restaurante ${restaurantId}...`, 'info');
+                
+                const response = await fetch('http://localhost:3001/api/restaurants/select', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ restaurantId }),
+                });
+
+                log(`Status da resposta: ${response.status}`, 'info');
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('selectedRestaurant', JSON.stringify(data.data.selectedRestaurant));
+                    
+                    log('✅ Restaurante selecionado com sucesso!', 'success', data);
+                    log('🎉 Agora você pode ir para o dashboard!', 'success');
+                    
+                    // Testar se o dashboard carrega
+                    setTimeout(() => {
+                        testDashboard();
+                    }, 1000);
+                } else {
+                    const error = await response.json();
+                    log('❌ Erro ao selecionar restaurante', 'error', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error
+                    });
+                }
+            } catch (error) {
+                log('❌ Erro de conexão ao selecionar restaurante', 'error', error.message);
+            }
+        }
+
+        async function testDashboard() {
+            log('Testando acesso ao dashboard...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/dashboard/restaurant-001/data', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Dashboard acessível!', 'success');
+                    log('🚀 Tudo funcionando - pode acessar http://localhost:3000', 'success');
+                } else {
+                    const error = await response.json();
+                    log('⚠️ Dashboard com problema', 'error', {
+                        status: response.status,
+                        error
+                    });
+                }
+            } catch (error) {
+                log('❌ Erro ao testar dashboard', 'error', error.message);
+            }
+        }
+
+        // Auto-carregar dados existentes
+        window.onload = function() {
+            const savedToken = localStorage.getItem('token');
+            const savedRestaurant = localStorage.getItem('selectedRestaurant');
+            
+            if (savedToken) {
+                token = savedToken;
+                log('🔑 Token encontrado no localStorage', 'info');
+            }
+            
+            if (savedRestaurant) {
+                log('🏪 Restaurante encontrado no localStorage', 'info', JSON.parse(savedRestaurant));
+            }
+        };
+    </script>
+</body>
+</html> 
