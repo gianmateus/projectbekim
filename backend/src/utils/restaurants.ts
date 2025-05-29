@@ -29,6 +29,46 @@ let PREDEFINED_RESTAURANTS = [
     email: 'info@sakurasushi.de',
     color: '#6c798b',
     ownerId: 'admin-001'
+  },
+  {
+    id: 'restaurant-004',
+    name: 'Le Jardin Français',
+    description: 'Cuisine française raffinée avec vue sur le jardin',
+    address: 'Kurfürstendamm 88, 10709 Berlin',
+    phone: '+49 30 55667788',
+    email: 'bonjour@lejardin.de',
+    color: '#8b4a9c',
+    ownerId: 'admin-001'
+  },
+  {
+    id: 'restaurant-005',
+    name: 'Mumbai Spice Palace',
+    description: 'Authentische indische Küche mit traditionellen Gewürzen',
+    address: 'Alexanderplatz 12, 10178 Berlin',
+    phone: '+49 30 99887766',
+    email: 'namaste@mumbaipalace.de',
+    color: '#e67e22',
+    ownerId: 'admin-001'
+  },
+  {
+    id: 'restaurant-006',
+    name: 'El Mariachi Loco',
+    description: 'Mexikanische Küche mit Live-Musik und Tequila-Bar',
+    address: 'Kreuzberg Straße 45, 10965 Berlin',
+    phone: '+49 30 44556677',
+    email: 'hola@elmariachi.de',
+    color: '#f39c12',
+    ownerId: 'admin-001'
+  },
+  {
+    id: 'restaurant-007',
+    name: 'The Burger Factory',
+    description: 'Premium Burger und Craft Beer in industriellem Ambiente',
+    address: 'Prenzlauer Berg 67, 10405 Berlin',
+    phone: '+49 30 22334455',
+    email: 'info@burgerfactory.de',
+    color: '#34495e',
+    ownerId: 'admin-001'
   }
 ];
 
