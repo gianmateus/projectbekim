@@ -1,79 +1,30 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Iniciando seed de produção...');
+  console.log('🌱 Verificando seed de produção...');
 
-  // Usar credenciais do ambiente OU credenciais padrão como fallback
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@restaurant.local';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'RestaurantAdmin2024!';
-  const adminName = process.env.ADMIN_NAME || 'Restaurant Administrator';
-
-  // Verificar se já existe usuário admin
-  const existingAdmin = await prisma.user.findUnique({
-    where: { email: adminEmail }
+  // Verificar se já existe algum usuário admin
+  const existingAdmin = await prisma.user.findFirst({
+    where: { role: 'ADMIN' }
   });
 
   if (existingAdmin) {
-    console.log('👤 Usuário admin já existe - pulando seed');
-    console.log('📧 Email do admin:', adminEmail);
+    console.log('✅ Sistema já possui administrador configurado');
+    console.log('📧 Admin encontrado:', existingAdmin.email);
+    console.log('🎉 Sistema pronto para uso!');
     return;
   }
 
-  if (adminPassword.length < 8) {
-    throw new Error('❌ ADMIN_PASSWORD deve ter pelo menos 8 caracteres!');
-  }
-
-  // Hash da senha
-  const hashedPassword = await bcrypt.hash(adminPassword, 12);
-
-  // Criar usuário admin
-  const admin = await prisma.user.create({
-    data: {
-      email: adminEmail,
-      password: hashedPassword,
-      name: adminName,
-      role: 'ADMIN',
-      isActive: true
-    }
-  });
-
-  console.log('✅ Usuário admin criado:', { 
-    id: admin.id, 
-    email: admin.email, 
-    name: admin.name 
-  });
-
-  // Verificar se já existe restaurante
-  const existingRestaurant = await prisma.restaurant.findFirst({
-    where: { ownerId: admin.id }
-  });
-
-  if (!existingRestaurant) {
-    // Criar restaurante padrão
-    const restaurant = await prisma.restaurant.create({
-      data: {
-        name: process.env.RESTAURANT_NAME || 'Meu Restaurante',
-        description: 'Restaurante criado automaticamente',
-        address: process.env.RESTAURANT_ADDRESS || 'Endereço não informado',
-        phone: process.env.RESTAURANT_PHONE || '',
-        email: adminEmail,
-        ownerId: admin.id
-      }
-    });
-
-    console.log('✅ Restaurante criado:', { 
-      id: restaurant.id, 
-      name: restaurant.name 
-    });
-  }
-
-  console.log('\n📋 Credenciais de acesso:');
-  console.log(`📧 Email: ${adminEmail}`);
-  console.log(`🔐 Senha: ${adminPassword}`);
-  console.log('🎉 Seed de produção concluído com sucesso!');
+  console.log('⚠️  ATENÇÃO: Nenhum administrador encontrado!');
+  console.log('');
+  console.log('🔧 Para configurar o sistema, execute:');
+  console.log('   node src/utils/create-admin.ts');
+  console.log('');
+  console.log('📋 Ou crie manualmente um usuário ADMIN no banco de dados.');
+  console.log('');
+  console.log('🚨 O sistema não funcionará corretamente sem um administrador!');
 }
 
 main()

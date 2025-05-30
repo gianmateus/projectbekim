@@ -402,24 +402,22 @@ export default function RestaurantSelectionPage() {
                   {restaurant.name.charAt(0).toUpperCase()}
                   
                   {/* Edit and Delete Buttons */}
-                  {user?.role === 'ADMIN' && (
-                    <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100">
-                      <button
-                        onClick={(e) => handleEditRestaurant(restaurant, e)}
-                        className="p-2 bg-black bg-opacity-20 hover:bg-opacity-40 rounded-lg transition-all duration-200"
-                        title="Restaurant bearbeiten"
-                      >
-                        <Edit className="w-4 h-4 text-white" />
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteRestaurant(restaurant, e)}
-                        className="p-2 bg-red-600 bg-opacity-80 hover:bg-opacity-100 rounded-lg transition-all duration-200"
-                        title="Restaurant löschen"
-                      >
-                        <Trash2 className="w-4 h-4 text-white" />
-                      </button>
-                    </div>
-                  )}
+                  <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100">
+                    <button
+                      onClick={(e) => handleEditRestaurant(restaurant, e)}
+                      className="p-2 bg-black bg-opacity-20 hover:bg-opacity-40 rounded-lg transition-all duration-200"
+                      title="Restaurant bearbeiten"
+                    >
+                      <Edit className="w-4 h-4 text-white" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteRestaurant(restaurant, e)}
+                      className="p-2 bg-red-600 bg-opacity-80 hover:bg-opacity-100 rounded-lg transition-all duration-200"
+                      title="Restaurant löschen"
+                    >
+                      <Trash2 className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Restaurant Info */}
@@ -467,27 +465,25 @@ export default function RestaurantSelectionPage() {
           ))}
 
           {/* Add New Restaurant Card */}
-          {user?.role === 'ADMIN' && (
-            <div
-              onClick={() => setShowCreateForm(true)}
-              className="group cursor-pointer transition-all duration-300 hover:scale-105"
-            >
-              <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-dashed border-gray-300 hover:border-orange-400">
-                <div className="h-32 flex items-center justify-center bg-gray-50 group-hover:bg-orange-50 transition-colors">
-                  <Plus className="w-16 h-16 text-gray-400 group-hover:text-orange-500 transition-colors" />
-                </div>
-                
-                <div className="p-6 text-center">
-                  <h3 className="text-xl font-bold text-gray-600 group-hover:text-orange-600 transition-colors">
-                    Neues Restaurant
-                  </h3>
-                  <p className="text-gray-500 text-sm mt-2">
-                    Klicken Sie hier, um ein neues Restaurant hinzuzufügen
-                  </p>
-                </div>
+          <div
+            onClick={() => setShowCreateForm(true)}
+            className="group cursor-pointer transition-all duration-300 hover:scale-105"
+          >
+            <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-dashed border-gray-300 hover:border-orange-400">
+              <div className="h-32 flex items-center justify-center bg-gray-50 group-hover:bg-orange-50 transition-colors">
+                <Plus className="w-16 h-16 text-gray-400 group-hover:text-orange-500 transition-colors" />
+              </div>
+              
+              <div className="p-6 text-center">
+                <h3 className="text-xl font-bold text-gray-600 group-hover:text-orange-600 transition-colors">
+                  Neues Restaurant
+                </h3>
+                <p className="text-gray-500 text-sm mt-2">
+                  Klicken Sie hier, um ein neues Restaurant hinzuzufügen
+                </p>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Empty State */}
@@ -501,14 +497,12 @@ export default function RestaurantSelectionPage() {
               <p className="text-gray-600 mb-6">
                 Es wurden noch keine Restaurants zu Ihrem Konto hinzugefügt.
               </p>
-              {user?.role === 'ADMIN' && (
-                <button
-                  onClick={() => setShowCreateForm(true)}
-                  className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
-                >
-                  Erstes Restaurant erstellen
-                </button>
-              )}
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+              >
+                Erstes Restaurant erstellen
+              </button>
             </div>
           </div>
         )}

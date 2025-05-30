@@ -46,9 +46,17 @@ export default function LoginPage() {
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
         
-        // Redirect to restaurant selection page
-        // Redirecionar para página de seleção de restaurante
-        router.push('/restaurants');
+        // Check user role and redirect accordingly
+        // Verificar role do usuário e redirecionar adequadamente
+        if (data.data.user.role === 'ADMIN') {
+          // Admin users go directly to admin panel
+          // Usuários admin vão direto para o painel de administração
+          router.push('/admin');
+        } else {
+          // Regular users go to restaurant selection page
+          // Usuários normais vão para página de seleção de restaurante
+          router.push('/restaurants');
+        }
       } else {
         setError(data.error || 'Anmeldung fehlgeschlagen');
       }
@@ -97,7 +105,7 @@ export default function LoginPage() {
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg 
                            focus:ring-primary-500 focus:border-primary-500 transition-colors
                            placeholder-gray-400"
-                  placeholder="admin@restaurant.local"
+                  placeholder="ihre.email@beispiel.de"
                 />
               </div>
             </div>
@@ -164,11 +172,11 @@ export default function LoginPage() {
           {/* Development Hints */}
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="text-xs text-gray-500 space-y-2">
-              <p className="font-medium">Entwicklung - Test-Zugangsdaten:</p>
+              <p className="font-medium">Demo-Zugangsdaten für Test:</p>
               <div className="bg-gray-50 p-3 rounded space-y-1">
-                <p><strong>Admin:</strong> admin@restaurant.local</p>
-                <p><strong>Manager:</strong> manager@restaurant.local</p>
-                <p className="text-gray-400 italic">Passwort: Wie im Code konfiguriert</p>
+                <p><strong>Benutzer:</strong> manager@restaurant.local</p>
+                <p><strong>Passwort:</strong> RestaurantManager2024!</p>
+                <p className="text-gray-400 italic">Demo-Konto zum Testen des Systems</p>
               </div>
             </div>
           </div>

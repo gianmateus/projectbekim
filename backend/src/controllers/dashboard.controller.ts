@@ -1,23 +1,146 @@
 import { Request, Response } from 'express';
-import { getRestaurantStats, getRestaurantAccounts, getRestaurantInventory, getRestaurantPurchases, getRestaurantEvents } from '../utils/mockData';
 import { validateRestaurantAccess } from '../utils/restaurants';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Interface for authenticated request - Interface para requisição autenticada
 interface AuthenticatedRequest extends Request {
-  user?: {
+  user: {
     id: string;
     email: string;
-    name: string;
     role: string;
   };
 }
 
+// Get restaurant stats from database
+const getRestaurantStatsFromDB = async (restaurantId: string) => {
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    include: {
+      accountsPayable: true,
+      accountsReceivable: true,
+      inventoryItems: true,
+      calendarEvents: true
+    }
+  });
+
+  if (!restaurant) {
+    return {
+      dailyRevenue: 0,
+      orders: 0,
+      appointments: 0,
+      weeklyProfit: 0
+    };
+  }
+
+  // Calculate stats from real data
+  const totalReceivable = restaurant.accountsReceivable.reduce((sum, account) => 
+    sum + Number(account.amount), 0);
+  const totalPayable = restaurant.accountsPayable.reduce((sum, account) => 
+    sum + Number(account.amount), 0);
+  const upcomingEvents = restaurant.calendarEvents.filter(event => 
+    new Date(event.startDate) >= new Date()).length;
+
+  return {
+    dailyRevenue: totalReceivable, // Use receivables as daily revenue
+    orders: restaurant.accountsReceivable.length,
+    appointments: upcomingEvents,
+    weeklyProfit: totalReceivable - totalPayable
+  };
+};
+
+// Get accounts from database
+const getRestaurantAccountsFromDB = async (restaurantId: string) => {
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    include: {
+      accountsPayable: true,
+      accountsReceivable: true
+    }
+  });
+
+  if (!restaurant) {
+    return { payable: [], receivable: [] };
+  }
+
+  return {
+    payable: restaurant.accountsPayable.map(account => ({
+      id: account.id,
+      vendor: account.vendor || 'Unbekannt',
+      amount: Number(account.amount),
+      dueDate: account.dueDate.toISOString(),
+      status: account.status,
+      category: account.category,
+      description: account.description
+    })),
+    receivable: restaurant.accountsReceivable.map(account => ({
+      id: account.id,
+      customer: account.customer || 'Unbekannt',
+      amount: Number(account.amount),
+      dueDate: account.dueDate.toISOString(),
+      status: account.status,
+      category: account.category,
+      description: account.description
+    }))
+  };
+};
+
+// Get inventory from database
+const getRestaurantInventoryFromDB = async (restaurantId: string) => {
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    include: {
+      inventoryItems: true
+    }
+  });
+
+  if (!restaurant) {
+    return [];
+  }
+
+  return restaurant.inventoryItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    quantity: Number(item.quantity),
+    unit: item.unit,
+    minQuantity: Number(item.minQuantity),
+    costPrice: Number(item.costPrice),
+    supplier: item.supplier || 'Unbekannt'
+  }));
+};
+
+// Get events from database
+const getRestaurantEventsFromDB = async (restaurantId: string) => {
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    include: {
+      calendarEvents: true
+    }
+  });
+
+  if (!restaurant) {
+    return [];
+  }
+
+  return restaurant.calendarEvents.map(event => ({
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    startDate: event.startDate.toISOString(),
+    endDate: event.endDate.toISOString(),
+    type: event.type,
+    priority: event.priority
+  }));
+};
+
 // Get dashboard stats for a specific restaurant
 // Obter estatísticas do dashboard para um restaurante específico
-export const getDashboardStats = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
-      console.log('❌ User not authenticated');
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
       res.status(401).json({ 
         success: false, 
         message: 'Benutzer nicht authentifiziert' 
@@ -26,17 +149,13 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
     }
 
     const { restaurantId } = req.params;
-    console.log('🔍 Dashboard Stats Request:', { 
-      userId: req.user.id, 
-      restaurantId,
-      userEmail: req.user.email 
-    });
 
     // Validate restaurant access
     // Validar acesso ao restaurante
-    if (!validateRestaurantAccess(restaurantId, req.user.id)) {
+    const hasAccess = await validateRestaurantAccess(restaurantId, authReq.user.id);
+    if (!hasAccess) {
       console.log('❌ Access denied to restaurant:', { 
-        userId: req.user.id, 
+        userId: authReq.user.id, 
         restaurantId 
       });
       res.status(403).json({ 
@@ -46,7 +165,7 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    const stats = getRestaurantStats(restaurantId);
+    const stats = await getRestaurantStatsFromDB(restaurantId);
     console.log('✅ Returning stats for restaurant:', restaurantId);
 
     res.json({
@@ -65,9 +184,10 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
 
 // Get complete dashboard data for a restaurant
 // Obter dados completos do dashboard para um restaurante
-export const getDashboardData = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getDashboardData = async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
       console.log('❌ User not authenticated for dashboard data');
       res.status(401).json({ 
         success: false, 
@@ -78,16 +198,17 @@ export const getDashboardData = async (req: AuthenticatedRequest, res: Response)
 
     const { restaurantId } = req.params;
     console.log('🔍 Dashboard Data Request:', { 
-      userId: req.user.id, 
+      userId: authReq.user.id, 
       restaurantId,
-      userEmail: req.user.email 
+      userEmail: authReq.user.email 
     });
 
     // Validate restaurant access
     // Validar acesso ao restaurante
-    if (!validateRestaurantAccess(restaurantId, req.user.id)) {
+    const hasAccess = await validateRestaurantAccess(restaurantId, authReq.user.id);
+    if (!hasAccess) {
       console.log('❌ Access denied to restaurant for dashboard data:', { 
-        userId: req.user.id, 
+        userId: authReq.user.id, 
         restaurantId 
       });
       res.status(403).json({ 
@@ -101,11 +222,10 @@ export const getDashboardData = async (req: AuthenticatedRequest, res: Response)
 
     // Get all data for the restaurant
     // Obter todos os dados para o restaurante
-    const stats = getRestaurantStats(restaurantId);
-    const accounts = getRestaurantAccounts(restaurantId);
-    const inventory = getRestaurantInventory(restaurantId);
-    const purchases = getRestaurantPurchases(restaurantId);
-    const events = getRestaurantEvents(restaurantId);
+    const stats = await getRestaurantStatsFromDB(restaurantId);
+    const accounts = await getRestaurantAccountsFromDB(restaurantId);
+    const inventory = await getRestaurantInventoryFromDB(restaurantId);
+    const events = await getRestaurantEventsFromDB(restaurantId);
 
     console.log('📊 Data fetched successfully:', { 
       restaurantId, 
@@ -120,7 +240,7 @@ export const getDashboardData = async (req: AuthenticatedRequest, res: Response)
     const overduePayables = accounts.payable.filter(p => p.status === 'OVERDUE').length;
     const pendingReceivables = accounts.receivable.filter(r => r.status === 'PENDING').length;
     const lowStockItems = inventory.filter(i => i.quantity <= i.minQuantity).length;
-    const pendingPurchases = purchases.filter(p => p.status === 'PENDING' || p.status === 'CONFIRMED').length;
+    const pendingPurchases = 0; // Assuming no purchases are tracked in the database
     const upcomingEvents = events.filter(e => new Date(e.startDate) >= new Date()).length;
 
     const dashboardData = {
@@ -138,7 +258,7 @@ export const getDashboardData = async (req: AuthenticatedRequest, res: Response)
         receivable: accounts.receivable.slice(0, 5) // Latest 5
       },
       inventory: inventory.slice(0, 8), // Top 8 items
-      purchases: purchases.slice(0, 5), // Latest 5
+      purchases: [], // No purchases tracked in the database
       events: events.slice(0, 5) // Next 5 events
     };
 
@@ -158,9 +278,10 @@ export const getDashboardData = async (req: AuthenticatedRequest, res: Response)
 
 // Get accounts for a specific restaurant
 // Obter contas para um restaurante específico
-export const getAccounts = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getAccounts = async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
       res.status(401).json({ 
         success: false, 
         message: 'Benutzer nicht authentifiziert' 
@@ -172,7 +293,8 @@ export const getAccounts = async (req: AuthenticatedRequest, res: Response): Pro
 
     // Validate restaurant access
     // Validar acesso ao restaurante
-    if (!validateRestaurantAccess(restaurantId, req.user.id)) {
+    const hasAccess = await validateRestaurantAccess(restaurantId, authReq.user.id);
+    if (!hasAccess) {
       res.status(403).json({ 
         success: false, 
         message: 'Kein Zugriff auf dieses Restaurant' 
@@ -180,7 +302,7 @@ export const getAccounts = async (req: AuthenticatedRequest, res: Response): Pro
       return;
     }
 
-    const accounts = getRestaurantAccounts(restaurantId);
+    const accounts = await getRestaurantAccountsFromDB(restaurantId);
 
     res.json({
       success: true,
@@ -198,9 +320,10 @@ export const getAccounts = async (req: AuthenticatedRequest, res: Response): Pro
 
 // Get inventory for a specific restaurant
 // Obter inventário para um restaurante específico
-export const getInventory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getInventory = async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
       res.status(401).json({ 
         success: false, 
         message: 'Benutzer nicht authentifiziert' 
@@ -212,7 +335,8 @@ export const getInventory = async (req: AuthenticatedRequest, res: Response): Pr
 
     // Validate restaurant access
     // Validar acesso ao restaurante
-    if (!validateRestaurantAccess(restaurantId, req.user.id)) {
+    const hasAccess = await validateRestaurantAccess(restaurantId, authReq.user.id);
+    if (!hasAccess) {
       res.status(403).json({ 
         success: false, 
         message: 'Kein Zugriff auf dieses Restaurant' 
@@ -220,7 +344,7 @@ export const getInventory = async (req: AuthenticatedRequest, res: Response): Pr
       return;
     }
 
-    const inventory = getRestaurantInventory(restaurantId);
+    const inventory = await getRestaurantInventoryFromDB(restaurantId);
 
     res.json({
       success: true,

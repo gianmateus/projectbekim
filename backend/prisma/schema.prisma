@@ -30,6 +30,7 @@ model User {
   inventoryItems     InventoryItem[]
   purchases          Purchase[]
   calendarEvents     CalendarEvent[]
+  payments           Payment[] // Pagamentos do cliente
   
   @@map("users")
 }
@@ -201,4 +202,29 @@ model CalendarEvent {
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@map("calendar_events")
+}
+
+// Payment Management - Controle de Pagamentos dos Clientes
+model Payment {
+  id           String    @id @default(cuid())
+  clientId     String    // ID do cliente (usuário)
+  clientName   String    // Nome do cliente
+  clientEmail  String    // Email do cliente
+  amount       Decimal   // Valor do pagamento
+  dueDate      DateTime  // Data de vencimento
+  paidDate     DateTime? // Data do pagamento (null se não pago)
+  paymentMethod String?  // CASH, BANK_TRANSFER, PIX, etc.
+  status       String    @default("PENDING") // PENDING, PAID, OVERDUE, CANCELLED
+  type         String    // LICENSE, MONTHLY, SETUP, etc.
+  description  String    // Descrição do pagamento
+  notes        String?   // Observações
+  referenceMonth String? // Mês de referência para mensalidades
+  receiptNumber String? // Número do recibo
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations - Relações
+  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  @@map("payments")
 } 
