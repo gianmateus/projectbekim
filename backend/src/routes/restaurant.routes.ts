@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth.middleware';
 import {
-  getRestaurants,
+  getAllRestaurants,
   getRestaurant,
   createNewRestaurant,
   updateRestaurant,
+  deleteRestaurantController,
   selectRestaurant
 } from '../controllers/restaurant.controller';
 
@@ -16,7 +17,7 @@ router.use(authenticateToken);
 
 // GET /api/restaurants - Get all restaurants for current user
 // GET /api/restaurants - Obter todos os restaurantes para o usuário atual
-router.get('/', getRestaurants);
+router.get('/', getAllRestaurants);
 
 // GET /api/restaurants/:restaurantId - Get specific restaurant
 // GET /api/restaurants/:restaurantId - Obter restaurante específico
@@ -29,6 +30,10 @@ router.post('/', createNewRestaurant);
 // PUT /api/restaurants/:restaurantId - Update restaurant
 // PUT /api/restaurants/:restaurantId - Atualizar restaurante
 router.put('/:restaurantId', updateRestaurant);
+
+// DELETE /api/restaurants/:restaurantId - Delete restaurant
+// DELETE /api/restaurants/:restaurantId - Deletar restaurante
+router.delete('/:restaurantId', deleteRestaurantController);
 
 // POST /api/restaurants/select - Select a restaurant
 // POST /api/restaurants/select - Selecionar um restaurante

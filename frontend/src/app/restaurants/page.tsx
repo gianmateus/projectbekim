@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, MapPin, Phone, Mail, Loader2, Edit, X } from 'lucide-react';
+import { Plus, MapPin, Phone, Mail, Loader2, Edit, X, Trash2 } from 'lucide-react';
 import { useEventEmitter } from '../../hooks/useEventBus';
 import { eventBus } from '../../utils/eventBus';
 
@@ -46,6 +46,11 @@ export default function RestaurantSelectionPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+  
+  // Delete confirmation modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingRestaurant, setDeletingRestaurant] = useState<Restaurant | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -291,6 +296,60 @@ export default function RestaurantSelectionPage() {
     resetForm();
   };
 
+  // Handle delete restaurant
+  const handleDeleteRestaurant = (restaurant: Restaurant, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering restaurant selection
+    setDeletingRestaurant(restaurant);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteRestaurant = async () => {
+    if (!deletingRestaurant) return;
+    
+    setDeleteLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/restaurants/${deletingRestaurant.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Restaurant gelöscht:', data);
+        
+        // Remove from restaurants list
+        setRestaurants(prev => prev.filter(r => r.id !== deletingRestaurant.id));
+        
+        // Close modal and reset state
+        setShowDeleteModal(false);
+        setDeletingRestaurant(null);
+        
+        // Emit restaurant deleted event
+        emitSuccess('Restaurant erfolgreich gelöscht!', 'RestaurantSelection');
+        eventBus.emit('RESTAURANT_DELETED', { restaurantId: deletingRestaurant.id });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Fehler beim Löschen des Restaurants:', errorData);
+        emitError(`Fehler beim Löschen: ${errorData.message || 'Unbekannter Fehler'}`, 'RestaurantSelection');
+      }
+    } catch (error) {
+      console.error('❌ Netzwerk-Fehler beim Löschen:', error);
+      emitError('Verbindungsfehler. Bitte versuchen Sie es erneut.', 'RestaurantSelection');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletingRestaurant(null);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
@@ -342,15 +401,24 @@ export default function RestaurantSelectionPage() {
                 >
                   {restaurant.name.charAt(0).toUpperCase()}
                   
-                  {/* Edit Button */}
+                  {/* Edit and Delete Buttons */}
                   {user?.role === 'ADMIN' && (
-                    <button
-                      onClick={(e) => handleEditRestaurant(restaurant, e)}
-                      className="absolute top-2 right-2 p-2 bg-black bg-opacity-20 hover:bg-opacity-40 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
-                      title="Restaurant bearbeiten"
-                    >
-                      <Edit className="w-4 h-4 text-white" />
-                    </button>
+                    <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100">
+                      <button
+                        onClick={(e) => handleEditRestaurant(restaurant, e)}
+                        className="p-2 bg-black bg-opacity-20 hover:bg-opacity-40 rounded-lg transition-all duration-200"
+                        title="Restaurant bearbeiten"
+                      >
+                        <Edit className="w-4 h-4 text-white" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteRestaurant(restaurant, e)}
+                        className="p-2 bg-red-600 bg-opacity-80 hover:bg-opacity-100 rounded-lg transition-all duration-200"
+                        title="Restaurant löschen"
+                      >
+                        <Trash2 className="w-4 h-4 text-white" />
+                      </button>
+                    </div>
                   )}
                 </div>
                 
@@ -786,6 +854,80 @@ export default function RestaurantSelectionPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingRestaurant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Restaurant löschen</h3>
+              </div>
+              <button
+                onClick={handleCloseDeleteModal}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={deleteLoading}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-600 mb-4">
+                <strong>Sind Sie absolut sicher, dass Sie das Restaurant "{deletingRestaurant.name}" löschen möchten?</strong>
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex">
+                  <div className="text-red-400 mr-3">
+                    ⚠️
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-red-800 mb-1">
+                      Achtung: Diese Aktion kann nicht rückgängig gemacht werden!
+                    </h4>
+                    <p className="text-sm text-red-700">
+                      Alle Daten, Einstellungen, Finanzdaten und Berichte dieses Restaurants werden dauerhaft gelöscht und können nicht wiederhergestellt werden.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={handleCloseDeleteModal}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={deleteLoading}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={confirmDeleteRestaurant}
+                disabled={deleteLoading}
+                className={`flex-1 px-4 py-3 rounded-lg transition-colors font-medium flex items-center justify-center ${
+                  deleteLoading
+                    ? 'bg-red-400 text-white cursor-not-allowed'
+                    : 'bg-red-600 text-white hover:bg-red-700'
+                }`}
+              >
+                {deleteLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Wird gelöscht...
+                  </>
+                ) : (
+                  'Ja, Restaurant löschen'
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import rateLimit from 'express-rate-limit';
-import { Request, Response } from 'express';
+import { Request } from 'express';
 
 // Rate limiter específico para login
 export const loginLimiter = rateLimit({
@@ -15,10 +15,6 @@ export const loginLimiter = rateLimit({
   // Bloquear por IP específico
   keyGenerator: (req: Request): string => {
     return req.ip || req.connection.remoteAddress || 'unknown';
-  },
-  // Headers personalizados
-  onLimitReached: (req: Request, res: Response) => {
-    console.warn(`🚨 Rate limit atingido para IP: ${req.ip} em ${new Date().toISOString()}`);
   }
 });
 

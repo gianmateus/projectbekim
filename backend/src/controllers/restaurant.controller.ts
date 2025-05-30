@@ -4,6 +4,7 @@ import {
   getRestaurantById, 
   createRestaurant, 
   updateRestaurantData,
+  deleteRestaurant,
   validateRestaurantAccess 
 } from '../utils/restaurants';
 
@@ -17,9 +18,9 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-// Get all restaurants for the current user
-// Obter todos os restaurantes para o usuário atual
-export const getRestaurants = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+// Get all restaurants for authenticated user
+// Obter todos os restaurantes para usuário autenticado
+export const getAllRestaurants = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {
       res.status(401).json({ 
@@ -29,12 +30,16 @@ export const getRestaurants = async (req: AuthenticatedRequest, res: Response): 
       return;
     }
 
-    const restaurants = getRestaurantsForUser(req.user.id);
+    console.log('🏪 Fetching restaurants for user:', req.user.id);
+
+    const restaurants = await getRestaurantsForUser(req.user.id);
     
+    console.log('📋 Found restaurants:', restaurants.length);
+
     res.json({
       success: true,
       data: restaurants,
-      message: 'Restaurants erfolgreich abgerufen'
+      message: `${restaurants.length} Restaurants gefunden`
     });
   } catch (error) {
     console.error('Error fetching restaurants:', error);
@@ -58,7 +63,16 @@ export const getRestaurant = async (req: AuthenticatedRequest, res: Response): P
     }
 
     const { restaurantId } = req.params;
-    const restaurant = getRestaurantById(restaurantId, req.user.id);
+
+    if (!restaurantId) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Restaurant-ID ist erforderlich' 
+      });
+      return;
+    }
+
+    const restaurant = await getRestaurantById(restaurantId, req.user.id);
 
     if (!restaurant) {
       res.status(404).json({ 
@@ -105,7 +119,7 @@ export const createNewRestaurant = async (req: AuthenticatedRequest, res: Respon
       return;
     }
 
-    const newRestaurant = createRestaurant({
+    const newRestaurant = await createRestaurant({
       name,
       description,
       address,
@@ -122,14 +136,6 @@ export const createNewRestaurant = async (req: AuthenticatedRequest, res: Respon
   } catch (error) {
     console.error('Error creating restaurant:', error);
     
-    if (error instanceof Error && error.message === 'Unauthorized to create restaurants') {
-      res.status(403).json({ 
-        success: false, 
-        message: 'Keine Berechtigung zum Erstellen von Restaurants' 
-      });
-      return;
-    }
-
     res.status(500).json({ 
       success: false, 
       message: 'Fehler beim Erstellen des Restaurants' 
@@ -165,7 +171,7 @@ export const updateRestaurant = async (req: AuthenticatedRequest, res: Response)
 
     // Validate that user has access to this restaurant
     // Validar que o usuário tem acesso a este restaurante
-    const hasAccess = validateRestaurantAccess(restaurantId, req.user.id);
+    const hasAccess = await validateRestaurantAccess(restaurantId, req.user.id);
     
     if (!hasAccess) {
       res.status(403).json({ 
@@ -175,7 +181,7 @@ export const updateRestaurant = async (req: AuthenticatedRequest, res: Response)
       return;
     }
 
-    const updatedRestaurant = updateRestaurantData(restaurantId, {
+    const updatedRestaurant = await updateRestaurantData(restaurantId, {
       name,
       description,
       address,
@@ -202,17 +208,71 @@ export const updateRestaurant = async (req: AuthenticatedRequest, res: Response)
   } catch (error) {
     console.error('Error updating restaurant:', error);
     
-    if (error instanceof Error && error.message === 'Unauthorized to update restaurant') {
-      res.status(403).json({ 
+    res.status(500).json({ 
+      success: false, 
+      message: 'Fehler beim Aktualisieren des Restaurants' 
+    });
+  }
+};
+
+// Delete a restaurant
+// Deletar um restaurante
+export const deleteRestaurantController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ 
         success: false, 
-        message: 'Keine Berechtigung zum Aktualisieren des Restaurants' 
+        message: 'Benutzer nicht authentifiziert' 
       });
       return;
     }
 
+    const { restaurantId } = req.params;
+
+    if (!restaurantId) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Restaurant-ID ist erforderlich' 
+      });
+      return;
+    }
+
+    console.log('🗑️ Deleting restaurant:', { restaurantId, userId: req.user.id });
+
+    // Validate that user has access to this restaurant
+    // Validar que o usuário tem acesso a este restaurante
+    const hasAccess = await validateRestaurantAccess(restaurantId, req.user.id);
+    
+    if (!hasAccess) {
+      res.status(403).json({ 
+        success: false, 
+        message: 'Kein Zugriff auf dieses Restaurant' 
+      });
+      return;
+    }
+
+    const result = await deleteRestaurant(restaurantId, req.user.id);
+
+    if (!result.success) {
+      res.status(404).json({ 
+        success: false, 
+        message: result.message 
+      });
+      return;
+    }
+
+    console.log('✅ Restaurant deleted successfully:', restaurantId);
+
+    res.json({
+      success: true,
+      message: result.message
+    });
+  } catch (error) {
+    console.error('Error deleting restaurant:', error);
+    
     res.status(500).json({ 
       success: false, 
-      message: 'Fehler beim Aktualisieren des Restaurants' 
+      message: 'Fehler beim Löschen des Restaurants' 
     });
   }
 };
@@ -241,7 +301,7 @@ export const selectRestaurant = async (req: AuthenticatedRequest, res: Response)
 
     // Validate that user has access to this restaurant
     // Validar que o usuário tem acesso a este restaurante
-    const hasAccess = validateRestaurantAccess(restaurantId, req.user.id);
+    const hasAccess = await validateRestaurantAccess(restaurantId, req.user.id);
     
     if (!hasAccess) {
       res.status(403).json({ 
@@ -251,7 +311,7 @@ export const selectRestaurant = async (req: AuthenticatedRequest, res: Response)
       return;
     }
 
-    const restaurant = getRestaurantById(restaurantId, req.user.id);
+    const restaurant = await getRestaurantById(restaurantId, req.user.id);
 
     res.json({
       success: true,

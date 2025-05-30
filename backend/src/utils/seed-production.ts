@@ -6,23 +6,20 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed de produção...');
 
+  // Usar credenciais do ambiente OU credenciais padrão como fallback
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@restaurant.local';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'RestaurantAdmin2024!';
+  const adminName = process.env.ADMIN_NAME || 'Restaurant Administrator';
+
   // Verificar se já existe usuário admin
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: process.env.ADMIN_EMAIL || 'admin@restaurant.local' }
+    where: { email: adminEmail }
   });
 
   if (existingAdmin) {
     console.log('👤 Usuário admin já existe - pulando seed');
+    console.log('📧 Email do admin:', adminEmail);
     return;
-  }
-
-  // Obter credenciais do ambiente (obrigatório em produção)
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  const adminName = process.env.ADMIN_NAME || 'Restaurant Admin';
-
-  if (!adminEmail || !adminPassword) {
-    throw new Error('❌ ADMIN_EMAIL e ADMIN_PASSWORD devem ser definidos em produção!');
   }
 
   if (adminPassword.length < 8) {
@@ -73,6 +70,9 @@ async function main() {
     });
   }
 
+  console.log('\n📋 Credenciais de acesso:');
+  console.log(`📧 Email: ${adminEmail}`);
+  console.log(`🔐 Senha: ${adminPassword}`);
   console.log('🎉 Seed de produção concluído com sucesso!');
 }
 
