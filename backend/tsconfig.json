@@ -22,8 +22,6 @@
     "exactOptionalPropertyTypes": false,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "types": ["node"],
-    "typeRoots": ["./node_modules/@types"],
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"],
