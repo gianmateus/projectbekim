@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",
-    "build": "npx tsc",
+    "build": "npx --package=typescript tsc",
     "start": "node dist/server.js",
     "lint": "eslint src/**/*.ts",
     "type-check": "tsc --noEmit",
