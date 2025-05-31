@@ -170,11 +170,7 @@ export const createClient = async (req: AuthenticatedRequest, res: Response): Pr
           dueDate: firstPayment.dueDate,
           referenceMonth: firstPayment.referenceMonth
         },
-        credentials: {
-          email: newUser.email,
-          password: password, // Enviar senha original para você fornecer ao cliente
-          loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
-        }
+        loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
       },
       message: 'Cliente criado com sucesso e primeiro pagamento agendado'
     });

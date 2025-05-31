@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Plus, Eye, EyeOff, Copy, Check, AlertCircle, UserMinus, Shield, LogOut, Edit2, Trash2, Play, Pause } from 'lucide-react';
+import { getAuthUrl, getAdminUrl, apiRequest } from '../../config/api';
 
 interface Client {
   id: string;
@@ -65,6 +66,8 @@ export default function AdminPage() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingPayments, setLoadingPayments] = useState<{ [key: string]: boolean }>({});
+  const [loadingActions, setLoadingActions] = useState<{ [key: string]: boolean }>({});
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
   const [copiedPassword, setCopiedPassword] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -127,11 +130,7 @@ export default function AdminPage() {
       }
 
       // Verificar se o token ainda é válido
-      const response = await fetch('http://localhost:3001/api/auth/verify', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiRequest('/api/auth/verify');
 
       if (!response.ok) {
         console.log('❌ Token inválido');
@@ -164,12 +163,7 @@ export default function AdminPage() {
   // Carregar lista de clientes
   const loadClients = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/admin/clients', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiRequest('/api/admin/clients');
 
       const data = await response.json();
       if (data.success) {
@@ -183,12 +177,7 @@ export default function AdminPage() {
   // Carregar lista de clientes desativados
   const loadDeactivatedClients = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/admin/clients/deactivated', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiRequest('/api/admin/clients/deactivated');
 
       const data = await response.json();
       if (data.success) {
@@ -202,12 +191,7 @@ export default function AdminPage() {
   // Carregar lista de pagamentos
   const loadPayments = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/admin/payments', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiRequest('/api/admin/payments');
 
       const data = await response.json();
       if (data.success) {
@@ -221,14 +205,11 @@ export default function AdminPage() {
 
   // Marcar pagamento como recebido
   const markPaymentAsPaid = async (paymentId: string, paymentMethod: string) => {
+    setLoadingPayments(prev => ({ ...prev, [paymentId]: true }));
+    
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/admin/payments/${paymentId}/paid`, {
+      const response = await apiRequest(`/api/admin/payments/${paymentId}/paid`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           paymentMethod,
           paidDate: new Date().toISOString()
@@ -246,6 +227,8 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Erro ao marcar pagamento como pago:', error);
       setMessage({ type: 'error', text: 'Erro ao marcar pagamento como pago' });
+    } finally {
+      setLoadingPayments(prev => ({ ...prev, [paymentId]: false }));
     }
   };
 
@@ -324,15 +307,11 @@ export default function AdminPage() {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
+    setLastCreatedCredentials(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/admin/clients', {
+      const response = await apiRequest('/api/admin/clients', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify(formData)
       });
 
@@ -340,7 +319,12 @@ export default function AdminPage() {
 
       if (data.success) {
         setMessage({ type: 'success', text: 'Cliente criado com sucesso!' });
-        setLastCreatedCredentials(data.data.credentials);
+        setLastCreatedCredentials({
+          email: data.data.user.email,
+          password: '***REMOVIDO POR SEGURANÇA***',
+          loginUrl: data.data.loginUrl
+        });
+        setShowCreateForm(false);
         setFormData({
           email: '',
           password: '',
@@ -351,7 +335,6 @@ export default function AdminPage() {
           monthlyAmount: '',
           paymentDay: ''
         });
-        setShowCreateForm(false);
         await loadClients();
       } else {
         setMessage({ type: 'error', text: data.message || 'Erro ao criar cliente' });
@@ -906,17 +889,19 @@ export default function AdminPage() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => markPaymentAsPaid(payment.id, 'CASH')}
-                              className="text-green-600 hover:text-green-900 font-medium"
+                              disabled={loadingPayments[payment.id]}
+                              className="text-green-600 hover:text-green-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Marcar como pago em dinheiro"
                             >
-                              💵 Dinheiro
+                              {loadingPayments[payment.id] ? '⏳' : '💵'} Dinheiro
                             </button>
                             <button
                               onClick={() => markPaymentAsPaid(payment.id, 'BANK_TRANSFER')}
-                              className="text-blue-600 hover:text-blue-900 font-medium"
+                              disabled={loadingPayments[payment.id]}
+                              className="text-blue-600 hover:text-blue-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Marcar como pago por transferência"
                             >
-                              🏦 Transferência
+                              {loadingPayments[payment.id] ? '⏳' : '🏦'} Transferência
                             </button>
                           </div>
                         )}
@@ -1020,17 +1005,19 @@ export default function AdminPage() {
                               <>
                                 <button
                                   onClick={() => markPaymentAsPaid(client.nextPayment!.id, 'CASH')}
-                                  className="text-green-600 hover:text-green-800 text-xs px-2 py-1 rounded hover:bg-green-50"
+                                  disabled={loadingPayments[client.nextPayment.id]}
+                                  className="text-green-600 hover:text-green-800 text-xs px-2 py-1 rounded hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                   title="Marcar como pago em dinheiro"
                                 >
-                                  💵 Dinheiro
+                                  {loadingPayments[client.nextPayment.id] ? '⏳' : '💵'} Dinheiro
                                 </button>
                                 <button
                                   onClick={() => markPaymentAsPaid(client.nextPayment!.id, 'BANK_TRANSFER')}
-                                  className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1 rounded hover:bg-blue-50"
+                                  disabled={loadingPayments[client.nextPayment.id]}
+                                  className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                   title="Marcar como pago por transferência"
                                 >
-                                  🏦 Transfer.
+                                  {loadingPayments[client.nextPayment.id] ? '⏳' : '🏦'} Transfer.
                                 </button>
                               </>
                             )}
