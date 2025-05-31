@@ -1,5 +1,5 @@
 # Dockerfile para o Backend Node.js
-FROM node:18-alpine AS base
+FROM node:18-alpine AS build
 
 # Instalar dependências do sistema
 RUN apk add --no-cache libc6-compat curl
@@ -10,11 +10,17 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Instalar dependências
-RUN npm ci --only=production && npm cache clean --force
+# Instalar TODAS as dependências para build
+RUN npm ci
 
 # Gerar Prisma Client
 RUN npx prisma generate
+
+# Copiar código fonte
+COPY . .
+
+# Build da aplicação TypeScript
+RUN npm run build
 
 # Stage de produção
 FROM node:18-alpine AS production
@@ -25,15 +31,21 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Copiar arquivos da stage base
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/prisma ./prisma
+# Copiar arquivos de dependências
+COPY package*.json ./
+COPY prisma ./prisma/
 
-# Copiar código fonte
-COPY --chown=nodejs:nodejs . .
+# Instalar apenas dependências de produção
+RUN npm ci --only=production && npm cache clean --force
 
-# Build da aplicação
-RUN npm run build
+# Gerar Prisma Client para produção
+RUN npx prisma generate
+
+# Copiar código compilado da stage de build
+COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
+
+# Copiar outros arquivos necessários
+COPY --chown=nodejs:nodejs .env.production ./.env
 
 # Criar diretório para uploads
 RUN mkdir -p uploads && chown nodejs:nodejs uploads
